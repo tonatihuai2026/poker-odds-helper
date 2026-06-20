@@ -1,79 +1,137 @@
 // UI wiring for the poker odds helper. Depends on window.PokerEngine (poker.js).
+// v1.1: replaced rank/suit dropdowns with a one-tap full-screen card grid (investor
+// feedback: dropdowns took ~8 taps to enter 2 hole cards on mobile -- see
+// investor/founder_inputs/Archive/use_empty_loops.draft.txt).
 (function () {
   var engine = window.PokerEngine;
 
-  var holeSelects = [
-    { rank: document.getElementById("hole1Rank"), suit: document.getElementById("hole1Suit") },
-    { rank: document.getElementById("hole2Rank"), suit: document.getElementById("hole2Suit") }
-  ];
+  var holeSlotsEl = document.getElementById("holeSlots");
   var boardStageSel = document.getElementById("boardStage");
-  var boardCardsEl = document.getElementById("boardCards");
+  var boardSlotsEl = document.getElementById("boardSlots");
   var opponentsSel = document.getElementById("opponents");
   var potSizeInput = document.getElementById("potSize");
   var betToCallInput = document.getElementById("betToCall");
   var calculateBtn = document.getElementById("calculate");
   var resultsEl = document.getElementById("results");
   var errorEl = document.getElementById("errorMsg");
+  var pickerOverlay = document.getElementById("cardPicker");
+  var pickerGrid = document.getElementById("cardPickerGrid");
+  var pickerCancel = document.getElementById("cardPickerCancel");
 
   var BOARD_COUNT_BY_STAGE = { preflop: 0, flop: 3, turn: 4, river: 5 };
+  var SUIT_SYMBOLS = { s: "♠", h: "♥", d: "♦", c: "♣" };
 
-  function populateRankSuitSelect(rankSel, suitSel) {
-    rankSel.innerHTML = '<option value="">Rank</option>';
-    engine.RANKS.forEach(function (label, i) {
-      var opt = document.createElement("option");
-      opt.value = i + 2;
-      opt.textContent = label;
-      rankSel.appendChild(opt);
-    });
-    suitSel.innerHTML = '<option value="">Suit</option>';
-    var suitLabels = { s: "Spades ♠", h: "Hearts ♥", d: "Diamonds ♦", c: "Clubs ♣" };
-    engine.SUITS.forEach(function (s) {
-      var opt = document.createElement("option");
-      opt.value = s;
-      opt.textContent = suitLabels[s];
-      suitSel.appendChild(opt);
-    });
-  }
+  // slots: { hole1: card|null, hole2: card|null, board: [card|null, ...] }
+  var slots = { hole1: null, hole2: null, board: [] };
+  var activeSlotKey = null; // "hole1" | "hole2" | "board0" | "board1" | ...
 
-  function renderBoardInputs() {
-    var count = BOARD_COUNT_BY_STAGE[boardStageSel.value];
-    boardCardsEl.innerHTML = "";
-    for (var i = 0; i < count; i++) {
-      var wrap = document.createElement("div");
-      wrap.className = "card-input";
-      var rankSel = document.createElement("select");
-      var suitSel = document.createElement("select");
-      rankSel.dataset.boardIdx = i;
-      suitSel.dataset.boardIdx = i;
-      populateRankSuitSelect(rankSel, suitSel);
-      wrap.appendChild(rankSel);
-      wrap.appendChild(suitSel);
-      boardCardsEl.appendChild(wrap);
-    }
-  }
+  function cardKey(c) { return c.rank + c.suit; }
 
-  function readCard(rankSel, suitSel) {
-    if (!rankSel.value || !suitSel.value) return null;
-    return { rank: parseInt(rankSel.value, 10), suit: suitSel.value };
-  }
-
-  function readBoardCards() {
+  function allSelectedCards() {
     var cards = [];
-    var selects = boardCardsEl.children;
-    for (var i = 0; i < selects.length; i++) {
-      var rankSel = selects[i].children[0];
-      var suitSel = selects[i].children[1];
-      var card = readCard(rankSel, suitSel);
-      if (!card) return null;
-      cards.push(card);
-    }
+    if (slots.hole1) cards.push(slots.hole1);
+    if (slots.hole2) cards.push(slots.hole2);
+    slots.board.forEach(function (c) { if (c) cards.push(c); });
     return cards;
+  }
+
+  function formatCard(c) {
+    var rankLabel = engine.RANKS[c.rank - 2];
+    return rankLabel + SUIT_SYMBOLS[c.suit];
+  }
+
+  function makeSlotButton(label, key) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "card-slot";
+    btn.dataset.slotKey = key;
+    btn.textContent = label;
+    btn.addEventListener("click", function () { openPicker(key); });
+    return btn;
+  }
+
+  function renderHoleSlots() {
+    holeSlotsEl.innerHTML = "";
+    holeSlotsEl.appendChild(makeSlotButton(slots.hole1 ? formatCard(slots.hole1) : "Card 1", "hole1"));
+    holeSlotsEl.appendChild(makeSlotButton(slots.hole2 ? formatCard(slots.hole2) : "Card 2", "hole2"));
+  }
+
+  function renderBoardSlots() {
+    var count = BOARD_COUNT_BY_STAGE[boardStageSel.value];
+    while (slots.board.length < count) slots.board.push(null);
+    slots.board.length = count;
+    boardSlotsEl.innerHTML = "";
+    for (var i = 0; i < count; i++) {
+      var label = slots.board[i] ? formatCard(slots.board[i]) : "Card " + (i + 1);
+      boardSlotsEl.appendChild(makeSlotButton(label, "board" + i));
+    }
+  }
+
+  function openPicker(key) {
+    activeSlotKey = key;
+    var used = allSelectedCards();
+    var usedKeys = {};
+    used.forEach(function (c) { usedKeys[cardKey(c)] = true; });
+    // The card currently in the active slot should still be selectable (tapping it
+    // again just re-confirms/replaces it), so exclude it from the "used" block list.
+    var currentCard = getSlotValue(key);
+    if (currentCard) delete usedKeys[cardKey(currentCard)];
+
+    pickerGrid.innerHTML = "";
+    engine.SUITS.forEach(function (suit) {
+      var row = document.createElement("div");
+      row.className = "picker-row";
+      for (var rank = 14; rank >= 2; rank--) {
+        var card = { rank: rank, suit: suit };
+        var key2 = cardKey(card);
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "picker-card" + (usedKeys[key2] ? " picker-card-used" : "");
+        btn.textContent = formatCard(card);
+        if (usedKeys[key2]) {
+          btn.disabled = true;
+        } else {
+          btn.addEventListener("click", function (card) {
+            return function () { selectCard(card); };
+          }(card));
+        }
+        row.appendChild(btn);
+      }
+      pickerGrid.appendChild(row);
+    });
+
+    pickerOverlay.style.display = "flex";
+  }
+
+  function getSlotValue(key) {
+    if (key === "hole1") return slots.hole1;
+    if (key === "hole2") return slots.hole2;
+    if (key.indexOf("board") === 0) return slots.board[parseInt(key.slice(5), 10)];
+    return null;
+  }
+
+  function setSlotValue(key, card) {
+    if (key === "hole1") slots.hole1 = card;
+    else if (key === "hole2") slots.hole2 = card;
+    else if (key.indexOf("board") === 0) slots.board[parseInt(key.slice(5), 10)] = card;
+  }
+
+  function selectCard(card) {
+    setSlotValue(activeSlotKey, card);
+    closePicker();
+    renderHoleSlots();
+    renderBoardSlots();
+  }
+
+  function closePicker() {
+    pickerOverlay.style.display = "none";
+    activeSlotKey = null;
   }
 
   function cardsHaveDuplicates(cards) {
     var seen = {};
     for (var i = 0; i < cards.length; i++) {
-      var key = cards[i].rank + cards[i].suit;
+      var key = cardKey(cards[i]);
       if (seen[key]) return true;
       seen[key] = true;
     }
@@ -85,26 +143,19 @@
     errorEl.style.display = msg ? "block" : "none";
   }
 
-  function formatCard(c) {
-    var rankLabel = engine.RANKS[c.rank - 2];
-    var suitSymbol = { s: "♠", h: "♥", d: "♦", c: "♣" }[c.suit];
-    return rankLabel + suitSymbol;
-  }
-
   function calculate() {
     showError("");
-    var hole1 = readCard(holeSelects[0].rank, holeSelects[0].suit);
-    var hole2 = readCard(holeSelects[1].rank, holeSelects[1].suit);
-    if (!hole1 || !hole2) {
+    if (!slots.hole1 || !slots.hole2) {
       showError("Select both of your hole cards first.");
       return;
     }
-    var board = readBoardCards();
-    if (board === null) {
+    var board = slots.board.slice();
+    if (board.some(function (c) { return !c; })) {
       showError("Fill in all board cards for the selected stage (or choose Preflop for none).");
       return;
     }
-    var allCards = [hole1, hole2].concat(board);
+
+    var allCards = [slots.hole1, slots.hole2].concat(board);
     if (cardsHaveDuplicates(allCards)) {
       showError("You've entered the same card twice -- each card can only appear once.");
       return;
@@ -112,7 +163,7 @@
 
     var numOpponents = parseInt(opponentsSel.value, 10);
     var trials = 3000;
-    var sim = engine.runEquitySimulation([hole1, hole2], board, numOpponents, trials);
+    var sim = engine.runEquitySimulation([slots.hole1, slots.hole2], board, numOpponents, trials);
 
     var potSize = parseFloat(potSizeInput.value);
     var betToCall = parseFloat(betToCallInput.value);
@@ -120,7 +171,7 @@
     var rec = engine.recommend(sim.equityPct, requiredEquity);
 
     resultsEl.innerHTML =
-      "<div class='hand-summary'>Your hand: " + formatCard(hole1) + " " + formatCard(hole2) +
+      "<div class='hand-summary'>Your hand: " + formatCard(slots.hole1) + " " + formatCard(slots.hole2) +
       (board.length ? " | Board: " + board.map(formatCard).join(" ") : " | Preflop") + "</div>" +
       "<div class='equity-row'><span class='equity-label'>Win</span><span>" + sim.winPct.toFixed(1) + "%</span></div>" +
       "<div class='equity-row'><span class='equity-label'>Tie</span><span>" + sim.tiePct.toFixed(1) + "%</span></div>" +
@@ -131,9 +182,14 @@
     resultsEl.style.display = "block";
   }
 
-  populateRankSuitSelect(holeSelects[0].rank, holeSelects[0].suit);
-  populateRankSuitSelect(holeSelects[1].rank, holeSelects[1].suit);
-  renderBoardInputs();
-  boardStageSel.addEventListener("change", renderBoardInputs);
+  renderHoleSlots();
+  renderBoardSlots();
+  boardStageSel.addEventListener("change", function () {
+    renderBoardSlots();
+  });
   calculateBtn.addEventListener("click", calculate);
+  pickerCancel.addEventListener("click", closePicker);
+  pickerOverlay.addEventListener("click", function (e) {
+    if (e.target === pickerOverlay) closePicker();
+  });
 })();

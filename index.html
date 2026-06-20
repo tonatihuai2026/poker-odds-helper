@@ -42,16 +42,8 @@
 
   <section id="setup">
     <h2>Your Hand</h2>
-    <div class="hole-cards">
-      <div class="card-input">
-        <select id="hole1Rank"></select>
-        <select id="hole1Suit"></select>
-      </div>
-      <div class="card-input">
-        <select id="hole2Rank"></select>
-        <select id="hole2Suit"></select>
-      </div>
-    </div>
+    <p class="hint">Tap a slot to pick a card from the grid &mdash; one tap per card.</p>
+    <div id="holeSlots" class="card-slots"></div>
 
     <h2>Board</h2>
     <div class="setup-row">
@@ -63,7 +55,7 @@
         <option value="river">River (5 cards)</option>
       </select>
     </div>
-    <div id="boardCards" class="board-cards"></div>
+    <div id="boardSlots" class="card-slots"></div>
 
     <h2>Opponents &amp; Pot (optional)</h2>
     <div class="setup-row">
@@ -107,6 +99,13 @@
     real opponents don't play every hand randomly.</p>
   </section>
 </main>
+
+<div id="cardPicker" class="card-picker-overlay" style="display:none;">
+  <div class="card-picker-box">
+    <div id="cardPickerGrid" class="card-picker-grid"></div>
+    <button type="button" id="cardPickerCancel" class="secondary">Cancel</button>
+  </div>
+</div>
 <script src="poker.js"></script>
 <script src="app.js"></script>
 </body>
