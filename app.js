@@ -67,40 +67,88 @@
     }
   }
 
-  function openPicker(key) {
-    activeSlotKey = key;
+  var SUIT_LABELS = { s: "Spades", h: "Hearts", d: "Diamonds", c: "Clubs" };
+  var pendingSuit = null; // set once step 1 (suit) is picked, cleared on close/select
+
+  function usedCardKeys(excludeKey) {
     var used = allSelectedCards();
     var usedKeys = {};
     used.forEach(function (c) { usedKeys[cardKey(c)] = true; });
-    // The card currently in the active slot should still be selectable (tapping it
-    // again just re-confirms/replaces it), so exclude it from the "used" block list.
-    var currentCard = getSlotValue(key);
+    // The card currently in the active slot should still be pickable (re-tapping it
+    // just re-confirms/replaces it), so it's never blocked as "already used".
+    var currentCard = getSlotValue(excludeKey);
     if (currentCard) delete usedKeys[cardKey(currentCard)];
+    return usedKeys;
+  }
+
+  function openPicker(key) {
+    activeSlotKey = key;
+    pendingSuit = null;
+    renderSuitStep();
+    pickerOverlay.style.display = "flex";
+  }
+
+  // Two-step picker (investor feedback: full-screen, one big choice per screen
+  // beats a small dropdown, even though it's 2 taps total) -- step 1: suit.
+  function renderSuitStep() {
+    pickerGrid.innerHTML = "";
+    var heading = document.createElement("div");
+    heading.className = "picker-heading";
+    heading.textContent = "Pick a suit";
+    pickerGrid.appendChild(heading);
+
+    var row = document.createElement("div");
+    row.className = "picker-row picker-row-suits";
+    engine.SUITS.forEach(function (suit) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "picker-suit";
+      btn.textContent = SUIT_SYMBOLS[suit] + " " + SUIT_LABELS[suit];
+      btn.addEventListener("click", function () {
+        pendingSuit = suit;
+        renderRankStep();
+      });
+      row.appendChild(btn);
+    });
+    pickerGrid.appendChild(row);
+  }
+
+  // Step 2: rank, scoped to the suit chosen in step 1.
+  function renderRankStep() {
+    var usedKeys = usedCardKeys(activeSlotKey);
 
     pickerGrid.innerHTML = "";
-    engine.SUITS.forEach(function (suit) {
-      var row = document.createElement("div");
-      row.className = "picker-row";
-      for (var rank = 14; rank >= 2; rank--) {
-        var card = { rank: rank, suit: suit };
-        var key2 = cardKey(card);
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "picker-card" + (usedKeys[key2] ? " picker-card-used" : "");
-        btn.textContent = formatCard(card);
-        if (usedKeys[key2]) {
-          btn.disabled = true;
-        } else {
-          btn.addEventListener("click", function (card) {
-            return function () { selectCard(card); };
-          }(card));
-        }
-        row.appendChild(btn);
-      }
-      pickerGrid.appendChild(row);
-    });
+    var heading = document.createElement("div");
+    heading.className = "picker-heading";
+    heading.textContent = SUIT_SYMBOLS[pendingSuit] + " " + SUIT_LABELS[pendingSuit] + " -- pick a rank";
+    pickerGrid.appendChild(heading);
 
-    pickerOverlay.style.display = "flex";
+    var row = document.createElement("div");
+    row.className = "picker-row picker-row-ranks";
+    for (var rank = 14; rank >= 2; rank--) {
+      var card = { rank: rank, suit: pendingSuit };
+      var key2 = cardKey(card);
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "picker-card" + (usedKeys[key2] ? " picker-card-used" : "");
+      btn.textContent = engine.RANKS[rank - 2];
+      if (usedKeys[key2]) {
+        btn.disabled = true;
+      } else {
+        btn.addEventListener("click", function (card) {
+          return function () { selectCard(card); };
+        }(card));
+      }
+      row.appendChild(btn);
+    }
+    pickerGrid.appendChild(row);
+
+    var backBtn = document.createElement("button");
+    backBtn.type = "button";
+    backBtn.className = "secondary";
+    backBtn.textContent = "Back to suits";
+    backBtn.addEventListener("click", renderSuitStep);
+    pickerGrid.appendChild(backBtn);
   }
 
   function getSlotValue(key) {
@@ -126,6 +174,7 @@
   function closePicker() {
     pickerOverlay.style.display = "none";
     activeSlotKey = null;
+    pendingSuit = null;
   }
 
   function cardsHaveDuplicates(cards) {

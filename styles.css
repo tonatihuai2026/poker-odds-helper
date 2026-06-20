@@ -79,6 +79,15 @@ button.secondary:hover { background: #666; }
 .picker-card-used { opacity: .3; cursor: not-allowed; }
 .picker-card-used:hover { background: #fff; }
 
+.picker-heading { font-size: 1.2rem; font-weight: bold; color: var(--felt-dark); margin-bottom: .5rem; }
+.picker-row-suits { gap: .75rem; }
+.picker-suit {
+  min-width: 7rem; padding: 1.2rem 1rem; font-size: 1.3rem; font-weight: bold;
+  background: #fff; color: var(--felt-dark); border: 2px solid var(--felt); border-radius: 10px;
+}
+.picker-suit:hover { background: var(--felt); color: #fff; }
+.picker-row-ranks .picker-card { min-width: 3.2rem; padding: .9rem .5rem; font-size: 1.3rem; }
+
 .results {
   background: #fff; border: 1px solid #ddd; border-radius: 8px;
   padding: 1.2rem; margin-top: 1.5rem;
