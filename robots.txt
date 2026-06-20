@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tonatihuai2026.github.io/poker-odds-helper/sitemap.xml

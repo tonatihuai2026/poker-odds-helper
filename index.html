@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Odds Helper — Free Hand Equity Calculator</title>
+<meta name="description" content="Free poker hand equity calculator for home games and study. Enter your cards and the board, get your win probability and a plain-English explanation of why to call or fold.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tonatihuai2026.github.io/poker-odds-helper/">
+<meta property="og:title" content="Poker Odds Helper — Free Hand Equity Calculator">
+<meta property="og:description" content="Free poker hand equity calculator for home games and study. Quick setup, instant equity %, and an explanation of why a call/fold is correct.">
+<meta name="twitter:card" content="summary">
+<meta name="google-site-verification" content="vcQAwsOMbG5UuDanWVq7T7KQQGwqCF837cfBN2HMVBc" />
+<meta name="google-adsense-account" content="ca-pub-8781477226668093">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8781477226668093" crossorigin="anonymous"></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Poker Odds Helper",
+  "url": "https://tonatihuai2026.github.io/poker-odds-helper/",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Any (runs in browser)",
+  "description": "Free poker hand equity calculator for home games and study. Enter your cards and the board, get your win probability and a plain-English explanation.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>Poker Odds Helper</h1>
+  <p>Free hand equity calculator for home games and study &mdash; quick setup, instant odds, plain-English explanation.</p>
+</header>
+<main>
+  <div class="notice">
+    <strong>For home-game and study use only.</strong> Most casinos, cardrooms, and online
+    poker sites prohibit real-time assistance tools during supervised/regulated play. This
+    tool is meant for casual home games and learning how equity and pot odds work &mdash;
+    not for use at a supervised table.
+  </div>
+
+  <section id="setup">
+    <h2>Your Hand</h2>
+    <div class="hole-cards">
+      <div class="card-input">
+        <select id="hole1Rank"></select>
+        <select id="hole1Suit"></select>
+      </div>
+      <div class="card-input">
+        <select id="hole2Rank"></select>
+        <select id="hole2Suit"></select>
+      </div>
+    </div>
+
+    <h2>Board</h2>
+    <div class="setup-row">
+      <label for="boardStage">Stage:</label>
+      <select id="boardStage">
+        <option value="preflop" selected>Preflop (no board)</option>
+        <option value="flop">Flop (3 cards)</option>
+        <option value="turn">Turn (4 cards)</option>
+        <option value="river">River (5 cards)</option>
+      </select>
+    </div>
+    <div id="boardCards" class="board-cards"></div>
+
+    <h2>Opponents &amp; Pot (optional)</h2>
+    <div class="setup-row">
+      <label for="opponents">Number of opponents:</label>
+      <select id="opponents">
+        <option value="1" selected>1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+    <div class="setup-row">
+      <label for="potSize">Pot size:</label>
+      <input type="number" id="potSize" min="0" step="0.01" placeholder="optional">
+    </div>
+    <div class="setup-row">
+      <label for="betToCall">Bet to call:</label>
+      <input type="number" id="betToCall" min="0" step="0.01" placeholder="optional">
+    </div>
+
+    <button id="calculate">Calculate Odds</button>
+    <p id="errorMsg" class="error-msg" style="display:none;"></p>
+  </section>
+
+  <section id="results" class="results" style="display:none;"></section>
+
+  <section class="rules">
+    <h2>How This Works</h2>
+    <ol>
+      <li>Enter your two hole cards.</li>
+      <li>Pick the board stage and enter the community cards you can see (none before the flop).</li>
+      <li>Optionally enter how many opponents are in the hand, and the pot size / bet you're facing.</li>
+      <li>Click "Calculate Odds" &mdash; the tool simulates thousands of random outcomes to estimate your win probability, then compares it to the equity required by the pot odds (if you entered them) and explains the recommendation in plain English.</li>
+    </ol>
+    <p><strong>v1 limitation:</strong> opponents are assumed to hold random hands (no range
+    modeling yet) &mdash; this is a simplification that keeps the tool fast and simple, but
+    real opponents don't play every hand randomly.</p>
+  </section>
+</main>
+<script src="poker.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
